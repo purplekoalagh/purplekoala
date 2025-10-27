@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from typing import Tuple, Optional
 import warnings
+from math import log
+from pandas.plotting import scatter_matrix
+import pandas as pd
 
 class LinearRegression:
     """
@@ -201,3 +204,163 @@ class LinearRegression:
 
       fig.tight_layout()
       plt.show()
+
+class CauchyLoss(nn.Module):
+  """
+  Cauchy Loss Implemented as custom loss function.
+
+  Reference used on how to create a custom loss function: https://www.codecademy.com/resources/docs/pytorch/custom-loss-functions-creation
+  """
+  def __init__(self, c = 1):
+    super(CauchyLoss, self).__init__()
+    self.c = c
+  def forward(self, y_pred, y_train):
+    loss = ((self.c**2)/2)*torch.log(1+((y_train-y_pred)/self.c)**2)
+    return torch.mean(loss)
+
+class CauchyRegression:
+  """
+  A Pytorch-based Multiple Linear Regression with Cauchy Loss for four variable.
+
+  Model: y = w_0 + w_1x_1 + w_2x_2 + w_3x_3 + w_4x_4
+  Loss: Cauchy
+  """
+
+  def __init__(self, learning_rate: float = 0.0001, max_epochs: int = 10000, tolerance: float = 1e-6):
+    self.learning_rate = learning_rate
+    self.max_epochs = max_epochs
+    self.tolerance = tolerance
+
+    # Model parameters
+    self.W = torch.randn(4, 1, requires_grad=True, dtype=torch.float32)  # Random initialization for weights
+    self.b = torch.randn(1, requires_grad=True, dtype=torch.float32)     # Random initialization for bias
+
+    # Training data storage
+    self.X_train = None
+    self.y_train = None
+
+    self.fitted = False
+
+    self.loss_history = []
+
+    # Loss function and optimizer
+    self.criterion = CauchyLoss()
+    self.optimizer = optim.SGD([self.W, self.b], lr=self.learning_rate)
+
+  def forward(self, X: torch.tensor):
+    """
+    Forward pass of the mutliple linear model.
+
+    Args:
+        X: Input tensor of shape (n_samples,)
+
+    Returns:
+        Predictions tensor of shape (n_samples,)
+    """
+    return X @ self.W + self.b
+
+  def fit(self, X_train: torch.tensor, y_train: torch.tensor):
+    """
+    Fit the Multiple Linear Regression with Cauchy Loss for four variable to the training data.
+        
+    Args:
+        X: Input features of shape (n_samples,)
+        y: Target values of shape (n_samples,)
+            
+    Returns:
+        self: Returns the fitted model instance
+    """
+    self.n_samples = len(X_train)
+
+    self.X_train = X_train
+    self.y_train = y_train
+
+    # Training loop
+    prev_loss = float('inf')
+
+    for epoch in range(self.max_epochs):
+      self.optimizer.zero_grad()
+
+    
+      y_pred = self.forward(self.X_train)
+      y_pred.requires_grad_(True)
+
+      loss = self.criterion(y_pred, self.y_train)
+
+      loss.backward()
+
+      self.optimizer.step()
+
+      current_loss = loss.item()
+      self.loss_history.append(current_loss)
+
+      # Check for convergence
+      if abs(prev_loss - current_loss) < self.tolerance:
+        print(f"Converged after {epoch + 1} epochs")
+        break
+            
+      prev_loss = current_loss
+    
+    self.fitted = True
+    return self
+
+  def predict(self, X: torch.tensor):
+    """
+    Make predictions on new data.
+        
+    Args:
+        X: Input features of shape (n_samples,)
+            
+    Returns:
+          Predictions as torch.tensor
+    """
+    if not self.fitted:
+        raise ValueError("Model must be fitted before making predictions")
+        
+    
+        
+    with torch.no_grad():
+        predictions = self.forward(X)
+        
+    return predictions
+
+
+  def get_parameters(self) -> Tuple[float, float, float, float, float]:
+    """
+    Get the fitted parameters.
+    
+    Returns:
+          Tuple of (W, b) - slope and intercept
+    """
+    if not self.fitted:
+        raise ValueError("Model must be fitted before accessing parameters")
+        
+    return float(self.W[0]), float(self.W[1]), float(self.W[2]), float(self.W[3]), float(self.b.item())
+
+  def correlatrion_matrix(self, X_y):
+    X_y = pd.DataFrame(X_y, columns=['AT', 'V', 'AP', 'RH', 'PE'])
+    scatter_matrix(X_y, alpha = 0.2, figsize=(10,10), diagonal='kde')
+    plt.show()
+
+  def residual_plot(self):
+    fig, axs = plt.subplots(2,2,figsize=(16,8))
+    y_pred = self.predict(self.X_train)
+    residual = y_pred-self.y_train
+    axs[0,0].scatter(residual, self.X_train[:,0])
+    axs[0,0].set_title("Residual Against x_1")
+    axs[0,0].set_xlabel("x_1")
+    axs[0,0].set_ylabel("Residual")
+    axs[0,1].scatter(residual, self.X_train[:,1])
+    axs[0,1].set_title("Residual Against x_2")
+    axs[0,1].set_xlabel("x_2")
+    axs[0,1].set_ylabel("Residual")
+    axs[1,0].scatter(residual, self.X_train[:,2])
+    axs[1,0].set_title("Residual Against x_3")
+    axs[1,0].set_xlabel("x_3")
+    axs[1,0].set_ylabel("Residual")
+    axs[1,1].scatter(residual, self.X_train[:,3])
+    axs[1,1].set_title("Residual Against x_4")
+    axs[1,1].set_xlabel("x_4")
+    axs[1,1].set_ylabel("Residual")
+    plt.tight_layout()
+    plt.show()
