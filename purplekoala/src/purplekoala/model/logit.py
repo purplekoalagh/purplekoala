@@ -88,7 +88,7 @@ class LogisticsRegression:
     return torch.log(self.predict_proba(X))
 
   def assessment_metrics(self, X_test_tensor: torch.tensor, y_test_tensor: torch.tensor):
-    prediction=model.predict(X_test_tensor)
+    prediction=self.predict(X_test_tensor)
 
     print('The accuracy of the Logistic Regression is',metrics.accuracy_score(prediction,y_test_tensor))
     print(confusion_matrix(y_test_tensor, prediction))
